@@ -19,12 +19,12 @@ def model_TaRh2B2(t1=1, t2=0.5, t3=0.3):
     my_model.set_onsite([0,0,0])
     my_model.set_hop(t1, 0, 1, [0, 0, 0])
     my_model.set_hop(t2, 0, 1, [-1, -1, 0])
-    my_model.set_hop(t3, 0, 1, [-1, 0, 0])
+    my_model.set_hop(t3, 0, 1, [0, -1, 0])
     my_model.set_hop(t1, 1, 2, [0, 0, 0])
-    my_model.set_hop(t2, 1, 2, [1, 0, 0])
-    my_model.set_hop(t3, 1, 2, [0, -1, 0])
+    my_model.set_hop(t2, 1, 2, [0, 1, 0])
+    my_model.set_hop(t3, 1, 2, [-1, 0, 0])
     my_model.set_hop(t1, 2, 0, [0, 0, 1])
-    my_model.set_hop(t2, 2, 0, [0, 1, 1])
+    my_model.set_hop(t2, 2, 0, [1, 0, 1])
     my_model.set_hop(t3, 2, 0, [1, 1, 1])
     
     return my_model
