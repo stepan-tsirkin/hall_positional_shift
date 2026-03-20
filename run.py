@@ -4,7 +4,8 @@ from wannierberri.system import System_PythTB
 from wannierberri.grid import Grid
 from wannierberri import run
 from wannierberri.calculators.static import Hall_classic_FermiSurf, AHC_Zeeman_spin, AHC_Zeeman_orb 
-
+import ray
+ray.init()
 
 import numpy as np
 model = model_TaRh2B2(t1=1, t2=0.5, t3=0.3)

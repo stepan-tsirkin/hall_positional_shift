@@ -2,7 +2,7 @@
 
 from wannierberri.calculators.static import StaticCalculator
 from wannierberri.formula import Formula_ln
-from wannierberri.formula.covariant_basic import Symmetric, tildeFab_d, tildeFab
+from wannierberri.formula.covariant import DerQuantumMetric_ab_d
 from wannierberri.symmetry.point_symmetry import transform_ident, transform_odd
 from wannierberri.utility import cached_einsum, alpha_A, beta_A
 import numpy as np
@@ -14,20 +14,6 @@ eV_au = physical_constants['electron volt-hartree relationship'][0]
 Ang_SI = angstrom
 
 
-
-class QuantumMetric_ab(Symmetric):
-    
-    def __init__(self, data_K, **parameters):
-        super().__init__(tildeFab, data_K, axes=[0,1],**parameters)
-        self.transformTR = transform_ident
-        self.transformInv = transform_ident
-
-class DerQuantumMetric_ab_d(Symmetric):
-
-    def __init__(self, data_K, **parameters):
-        super().__init__(tildeFab_d, data_K, axes=[0,1], **parameters)
-        self.transformTR = transform_odd
-        self.transformInv = transform_odd
 
 
 class PositionalShiftFormula(Formula_ln):
@@ -50,7 +36,8 @@ class PositionalShiftFormula(Formula_ln):
             if self.morb_part:
                 self.M = data_k.SDCT.get_M1(external_terms=self.external_terms)
             if self.spin_part:
-                self.S = data_k.covariant('SS') 
+                from wannierberri.data_K.sdct_K import m_spin_prefactor
+                self.S = data_k.covariant('SS') * m_spin_prefactor
         if self.metric_part:
             self.DerMetric = DerQuantumMetric_ab_d(
                 data_k, external_terms=self.external_terms)
@@ -64,7 +51,7 @@ class PositionalShiftFormula(Formula_ln):
             if self.morb_part:
                 M += self.M[ik, out][:, inn]
             if self.spin_part:
-                M += self.S.ln(ik, inn, out) * m_spin_prefactor
+                M += self.S.ln(ik, inn, out) 
             res[rng, rng, :, :] += 2*cached_einsum("nma,mnb,nm->nab",
                                     self.A[ik, inn][:, out], M, self.dEig_inv[ik, inn][:, out] ).real
         if self.metric_part:
