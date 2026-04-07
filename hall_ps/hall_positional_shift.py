@@ -18,7 +18,7 @@ Ang_SI = angstrom
 
 class PositionalShiftFormula(Formula_ln):
 
-    from wannierberri.data_K.sdct_K import m_spin_prefactor
+    from wannierberri.factors import m_spin_prefactor
 
     def __init__(self, data_k,
                  spin_part=False,
@@ -26,22 +26,27 @@ class PositionalShiftFormula(Formula_ln):
                  metric_part=False,
                  **parameters):
         super().__init__(data_k, **parameters)
+        
         assert any([spin_part, morb_part, metric_part]
                    ), "at least one part should be included in PositionalShiftFormula"
         self.spin_part = spin_part
         self.morb_part = morb_part
         self.metric_part = metric_part
         if self.morb_part or self.spin_part:
-            self.A = data_k.SDCT.get_E1(external_terms=self.external_terms)
+            self.A = data_k.get_E1(external_terms=self.external_terms)
             if self.morb_part:
-                self.M = data_k.SDCT.get_M1(external_terms=self.external_terms)
+                self.M = data_k.get_M1(external_terms=self.external_terms)
             if self.spin_part:
-                from wannierberri.data_K.sdct_K import m_spin_prefactor
+                from wannierberri.factors import m_spin_prefactor
                 self.S = data_k.covariant('SS') * m_spin_prefactor
         if self.metric_part:
             self.DerMetric = DerQuantumMetric_ab_d(
                 data_k, external_terms=self.external_terms)
         self.dEig_inv = data_k.dEig_inv
+
+        self.ndim = 2
+        # self.transformTR = transform_odd
+        # self.transformInv = transform_ident
 
     def nn(self, ik, inn, out):
         res = np.zeros((len(inn), len(inn), 3, 3), dtype=complex)
