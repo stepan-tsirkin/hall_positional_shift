@@ -56,12 +56,13 @@ class PositionalShiftFormula(Formula_ln):
             if self.morb_part:
                 M += self.M[ik, out][:, inn]
             if self.spin_part:
-                M += self.S.ln(ik, inn, out) 
+                M += self.S.nl(ik, inn, out) 
             res[rng, rng, :, :] += 2*cached_einsum("nma,mnb,nm->nab",
-                                    self.A[ik, inn][:, out], M, self.dEig_inv[ik, inn][:, out] ).real
+                                    M, self.A[ik, out][:, inn], self.dEig_inv[ik, inn][:, out] ).real
         if self.metric_part:
-            dGda_c = self.DerMetric.nn(ik, inn, out)
-            res[: , :, :, : ] += 0.5 * (dGda_c[:, :,  :, beta_A, alpha_A] - dGda_c[:, :, :, alpha_A, beta_A])
+            dGdb_c = self.DerMetric.nn(ik, inn, out)
+            res[:, :, :, :] += 0.5 * (dGdb_c[:, :, alpha_A, :, beta_A] 
+                                      - dGdb_c[:, :, beta_A, :, alpha_A]).transpose(1,2,0,3)
         return res
 
     def ln(self, ik, inn, out):
@@ -91,7 +92,9 @@ class HallPositionalShiftFormula(Formula_ln):
         v = self.V.nn(ik, inn, out)
         F = self.F.nn(ik, inn, out)
         vF = cached_einsum("lma,mnbc->lnabc", v, F)
-        return vF[:,:,alpha_A, beta_A,:] - vF[:,:,beta_A, alpha_A,:]
+        
+        return (vF[:,:,alpha_A, : , beta_A] - vF[:,:,beta_A, : , alpha_A]
+                ).transpose((1,2,0,3))
 
     def ln(self, ik, inn, out):
         raise NotImplementedError(
