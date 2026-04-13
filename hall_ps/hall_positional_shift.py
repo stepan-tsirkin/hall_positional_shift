@@ -35,7 +35,7 @@ class PositionalShiftFormula(Formula_ln):
         if self.morb_part or self.spin_part:
             self.A = data_k.get_E1(external_terms=self.external_terms)
             if self.morb_part:
-                self.M = data_k.get_M1(external_terms=self.external_terms)
+                self.M = data_k.get_M1(external_terms=self.external_terms, AH_term=True)
             if self.spin_part:
                 from wannierberri.factors import m_spin_prefactor
                 self.S = data_k.covariant('SS') * m_spin_prefactor
