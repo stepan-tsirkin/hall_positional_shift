@@ -35,10 +35,11 @@ class PositionalShiftFormula(Formula_ln):
         if self.morb_part or self.spin_part:
             self.A = data_k.get_E1(external_terms=self.external_terms)
             if self.morb_part:
-                self.M = data_k.get_M1(external_terms=self.external_terms, AH_term=True)
+                self.M = data_k.get_M1(external_terms=self.external_terms, V_term=True, AH_term=True)
             if self.spin_part:
                 from wannierberri.factors import m_spin_prefactor
-                self.S = data_k.covariant('SS') * m_spin_prefactor
+                self.m_spin_prefactor = m_spin_prefactor
+                self.S = data_k.covariant('SS')
         if self.metric_part:
             self.DerMetric = DerQuantumMetric_ab_d(
                 data_k, external_terms=self.external_terms)
@@ -54,9 +55,9 @@ class PositionalShiftFormula(Formula_ln):
         if self.morb_part or self.spin_part:
             M = 0
             if self.morb_part:
-                M += self.M[ik, out][:, inn]
+                M += self.M[ik, inn][:, out]
             if self.spin_part:
-                M += self.S.nl(ik, inn, out) 
+                M += self.S.nl(ik, inn, out)  * self.m_spin_prefactor
             res[rng, rng, :, :] += 2*cached_einsum("nma,mnb,nm->nab",
                                     M, self.A[ik, out][:, inn], self.dEig_inv[ik, inn][:, out] ).real
         if self.metric_part:
