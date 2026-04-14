@@ -5,20 +5,20 @@ from wannierberri.formula import Formula_ln
 from wannierberri.formula.covariant import DerQuantumMetric_ab_d
 from wannierberri.symmetry.point_symmetry import transform_ident, transform_odd
 from wannierberri.utility import cached_einsum, alpha_A, beta_A
-import numpy as np
-from scipy.constants import elementary_charge, hbar, electron_mass, physical_constants, angstrom
 
-bohr_magneton = elementary_charge * hbar / (2 * electron_mass)
-bohr = physical_constants['Bohr radius'][0] / angstrom
-eV_au = physical_constants['electron volt-hartree relationship'][0]
-Ang_SI = angstrom
+
+from wannierberri.factors import elementary_charge, hbar, m_spin_prefactor, angstrom
+
+# Positional shift comes in units of Ang^3, multiplied by band gradient (eV/Ang) and f' (1/eV) and integrated over d3k (1/Ang^3), the final unit is Ang. 
+# First, convert to m, then multiply by e/hbar (1/(T*m^2)), and then by e^2/hbar ( S = 1/Ohm), to get the final unit S/(T*m).
+factor_hall_pos_shift = angstrom * elementary_charge**3 / hbar**2
+
+import numpy as np
 
 
 
 
 class PositionalShiftFormula(Formula_ln):
-
-    from wannierberri.factors import m_spin_prefactor
 
     def __init__(self, data_k,
                  spin_part=False,
@@ -37,8 +37,6 @@ class PositionalShiftFormula(Formula_ln):
             if self.morb_part:
                 self.M = data_k.get_M1(external_terms=self.external_terms, V_term=True, AH_term=True)
             if self.spin_part:
-                from wannierberri.factors import m_spin_prefactor
-                self.m_spin_prefactor = m_spin_prefactor
                 self.S = data_k.covariant('SS')
         if self.metric_part:
             self.DerMetric = DerQuantumMetric_ab_d(
@@ -57,7 +55,7 @@ class PositionalShiftFormula(Formula_ln):
             if self.morb_part:
                 M += self.M[ik, inn][:, out]
             if self.spin_part:
-                M += self.S.nl(ik, inn, out)  * self.m_spin_prefactor
+                M += self.S.nl(ik, inn, out)  * m_spin_prefactor
             res[rng, rng, :, :] += 2*cached_einsum("nma,mnb,nm->nab",
                                     M, self.A[ik, out][:, inn], self.dEig_inv[ik, inn][:, out] ).real
         if self.metric_part:
@@ -73,6 +71,8 @@ class PositionalShiftFormula(Formula_ln):
 
 class HallPositionalShiftFormula(Formula_ln):
 
+
+
     def __init__(self, data_k,
                  spin_part=False,
                  morb_part=False,
@@ -86,7 +86,7 @@ class HallPositionalShiftFormula(Formula_ln):
                                         metric_part=metric_part,
                                         **parameters)
         self.ndim = 2
-        self.transformTR = transform_odd
+        self.transformTR = transform_ident
         self.transformInv = transform_ident
 
     def nn(self, ik, inn, out):
@@ -107,4 +107,4 @@ class HallPositionalShift(StaticCalculator):
     def __init__(self,  **parameters):
         self.fder = 1
         self.Formula = HallPositionalShiftFormula
-        super().__init__(**parameters)
+        super().__init__(constant_factor=factor_hall_pos_shift, **parameters)
