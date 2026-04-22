@@ -1,11 +1,13 @@
 
 
+from functools import lru_cache
+
 from wannierberri.calculators.static import StaticCalculator
 from wannierberri.formula import Formula_ln
 from wannierberri.formula.covariant import DerQuantumMetric_ab_d
 from wannierberri.symmetry.point_symmetry import transform_ident, transform_odd
 from wannierberri.utility import cached_einsum, alpha_A, beta_A
-
+from wannierberri.data_K.data_K_R import Data_K_R
 
 from wannierberri.factors import elementary_charge, hbar, m_spin_prefactor, angstrom
 
@@ -17,27 +19,56 @@ import numpy as np
 
 
 
+class Data_K_pos_shift(Data_K_R):
+
+    @lru_cache
+    def get_M1_AH(self, external_terms=True,
+               M1_term=True,
+               V_term=True,
+               spin=False,
+               key_OO='rotAA', degen_thresh=1e-3,
+               AH_term=False):
+        ''' Magnetic dipole moment '''
+        M = self.get_M1(external_terms=external_terms, spin=spin, orb=M1_term,
+                        key_OO=key_OO, degen_thresh=degen_thresh)
+        if V_term:
+            Vn = self.delE_K
+            Vnm_plus = (Vn[:, :, None, :] + Vn[:, None, :, :])
+            A = self.get_E1(external_terms=external_terms, degen_thresh=degen_thresh)
+            M += 0.5 * (Vnm_plus[:, :, :, alpha_A] * A[:, :, :, beta_A] -
+                    Vnm_plus[:, :, :, beta_A] * A[:, :, :, alpha_A])
+        if AH_term:
+            En = self.E_K
+            O_H = self.get_O1(external_terms=external_terms, key_OO=key_OO, degen_thresh=degen_thresh)
+            Eln_minus = (En[:, :, None] - En[:, None, :])
+            M += 0.25 * Eln_minus[:, :, :, None] * O_H
+        return M
+
 
 class PositionalShiftFormula(Formula_ln):
 
     def __init__(self, data_k,
                  spin_part=False,
                  morb_part=False,
+                 AH_term=True,
+                 V_term=True,
+                 M1_term=True,
                  metric_part=False,
                  **parameters):
         super().__init__(data_k, **parameters)
         
         assert any([spin_part, morb_part, metric_part]
                    ), "at least one part should be included in PositionalShiftFormula"
-        self.spin_part = spin_part
-        self.morb_part = morb_part
+        self.M_part = morb_part or spin_part
         self.metric_part = metric_part
-        if self.morb_part or self.spin_part:
+        if self.M_part:
             self.A = data_k.get_E1(external_terms=self.external_terms)
-            if self.morb_part:
-                self.M = data_k.get_M1(external_terms=self.external_terms, V_term=True, AH_term=True)
-            if self.spin_part:
-                self.S = data_k.covariant('SS')
+            self.M = data_k.get_M1_AH(external_terms=self.external_terms, 
+                                      V_term=morb_part and V_term, 
+                                      AH_term=morb_part and AH_term,
+                                      M1_term=morb_part and M1_term,
+                                      spin=spin_part, 
+                                      key_OO='rotAA', degen_thresh=1e-3)
         if self.metric_part:
             self.DerMetric = DerQuantumMetric_ab_d(
                 data_k, external_terms=self.external_terms)
@@ -50,12 +81,8 @@ class PositionalShiftFormula(Formula_ln):
     def nn(self, ik, inn, out):
         res = np.zeros((len(inn), len(inn), 3, 3), dtype=complex)
         rng = range(len(inn))
-        if self.morb_part or self.spin_part:
-            M = 0
-            if self.morb_part:
-                M += self.M[ik, inn][:, out]
-            if self.spin_part:
-                M += self.S.nl(ik, inn, out)  * m_spin_prefactor
+        if self.M_part:
+            M = self.M[ik, inn][:, out]
             res[rng, rng, :, :] += 2*cached_einsum("nma,mnb,nm->nab",
                                     M, self.A[ik, out][:, inn], self.dEig_inv[ik, inn][:, out] ).real
         if self.metric_part:
